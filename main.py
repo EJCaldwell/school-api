@@ -6,10 +6,13 @@ from models import Student, Instructor, Course
 from schemas import (
     CreateStudentRequest,
     CreateStudentResponse,
+    UpdateStudentRequest,
     CreateInstructorRequest,
     CreateInstructorResponse,
+    UpdateInstructorRequest,
     CreateCourseRequest,
     CreateCourseResponse,
+    UpdateCourseRequest,
 )
 
 app = FastAPI()
@@ -56,6 +59,23 @@ async def get_student_courses(student_id: int, db: Session = Depends(get_db)) ->
         courses[course.course_number] = course.title
 
     return courses
+
+
+@app.patch("/students/{student_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def update_student(student_id: int, update_request: UpdateStudentRequest, db: Session = Depends(get_db)) -> None:
+    student: Student | None = db.get(Student, student_id)
+
+    if student is None:
+        raise HTTPException(status_code=404, detail=f"Student with ID {student_id} not found")
+
+    if update_request.first_name:
+        student.first_name = update_request.first_name
+    if update_request.last_name:
+        student.last_name = update_request.last_name
+    if update_request.email:
+        student.email = update_request.email
+
+    db.commit()
 
 
 @app.delete("/students/{student_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -109,6 +129,19 @@ async def create_instructor(
     return CreateInstructorResponse(instructor_id=instructor.id)
 
 
+@app.patch("/instructors/{id}", status_code=status.HTTP_204_NO_CONTENT)
+async def update_instructor(id: int, update_request: UpdateInstructorRequest, db: Session = Depends(get_db)) -> None:
+    instructor: Instructor | None = db.get(Instructor, id)
+
+    if instructor is None:
+        raise HTTPException(status_code=404, detail=f"Instructor with ID {id} not found")
+
+    for k, v in update_request.model_dump(exclude_unset=True).items():
+        setattr(instructor, k, v)
+
+    db.commit()
+
+
 @app.delete("/instructors/{instructor_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_instructor(instructor_id: int, db: Session = Depends(get_db)) -> None:
     instructor: Instructor | None = db.get(Instructor, instructor_id)
@@ -131,6 +164,19 @@ async def create_course(new_course: CreateCourseRequest, db: Session = Depends(g
     db.add(course)
     db.commit()
     return CreateCourseResponse(course_id=course.course_id)
+
+
+@app.patch("/courses/{id}", status_code=status.HTTP_204_NO_CONTENT)
+async def update_course(id: int, update_request: UpdateCourseRequest, db: Session = Depends(get_db)) -> None:
+    course: Course | None = db.get(Course, id)
+
+    if course is None:
+        raise HTTPException(status_code=404, detail=f"Course with ID {id} not found")
+
+    for k, v in update_request.model_dump(exclude_unset=True).items():
+        setattr(course, k, v)
+
+    db.commit()
 
 
 @app.delete("/courses/{course_id}", status_code=status.HTTP_204_NO_CONTENT)
